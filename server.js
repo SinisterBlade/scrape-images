@@ -12,7 +12,7 @@ app.get('/', function(req, res) {
 })
 
 app.get('/scrape', function (req, res) {
-    let query = req.query.q
+    let query = req.query.q.toLowerCase()
     let numberOfImages = req.query.num
     let options = {
         url: 'https://www.google.co.in/search?q=' + query + '&tbm=isch&source=lnms',
@@ -33,13 +33,13 @@ app.get('/scrape', function (req, res) {
 
             imagesToBeDownloaded = allImageUrls.slice(0, numberOfImages)
             let imagePromises = imagesToBeDownloaded.map(function (url, index) {
-                return downloadFile(url, index, query)
+                return downloadFile(url, index, toTitleCase(query))
             })
 
             Promise.all(imagePromises)
-                .then(() => zipFolder(query, query))
+                .then(() => zipFolder(toTitleCase(query), query))
                 .then(() => console.log('Done zipping'))
-                .then(() => fs.rename(query, 'images/' + query))
+                .then(() => fs.rename(toTitleCase(query), 'images/' + query))
                 .then(() => res.sendStatus(200))
                 .catch((reason) => {
                     console.log('My error: ' + reason)
@@ -62,7 +62,7 @@ function downloadFile(url, filename, foldername) {
         r.on('error', (err) => resolve()) // BAD
         r.on('response', (response) => {
             let contentType = response.headers['content-type']
-            if (response.statusCode == 200 && contentType.startsWith('image')) {
+            if (response.statusCode == 200 && (contentType.endsWith('png') || contentType.endsWith('jpeg') || contentType.endsWith('jpg'))) {
                 console.log('Content type:' + contentType)
                 let fileExtension = '.'
                 fileExtension += mime.extension(contentType) ? mime.extension(contentType) : "jpg"
@@ -91,6 +91,12 @@ function zipFolder(foldername, zipfilename) {
         archive.directory(foldername + '/');
         archive.finalize();
     })
+}
+
+function toTitleCase(givenString) {
+    givenString = givenString.toLowerCase()
+    let firstLetter = givenString.slice(0, 1).toUpperCase()
+    return firstLetter + givenString.slice(1)
 }
 
 app.listen(3000, function () {
